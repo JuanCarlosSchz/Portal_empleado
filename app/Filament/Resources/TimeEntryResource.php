@@ -29,6 +29,21 @@ class TimeEntryResource extends Resource
     
     public static function canViewAny(): bool
     {
+        return auth()->user()->isAdmin() || auth()->user()->isTrabajador();
+    }
+    
+    public static function canCreate(): bool
+    {
+        return auth()->user()->isAdmin();
+    }
+    
+    public static function canEdit($record): bool
+    {
+        return auth()->user()->isAdmin();
+    }
+    
+    public static function canDelete($record): bool
+    {
         return auth()->user()->isAdmin();
     }
 
@@ -134,11 +149,17 @@ class TimeEntryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                if (auth()->user()->isTrabajador()) {
+                    $query->where('user_id', auth()->id());
+                }
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Usuario')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(fn () => auth()->user()->isAdmin()),
                 Tables\Columns\BadgeColumn::make('type')
                     ->label('Tipo')
                     ->formatStateUsing(fn (string $state): string => match ($state) {
@@ -171,7 +192,8 @@ class TimeEntryResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('user')
                     ->label('Usuario')
-                    ->relationship('user', 'name'),
+                    ->relationship('user', 'name')
+                    ->visible(fn () => auth()->user()->isAdmin()),
                 Tables\Filters\SelectFilter::make('type')
                     ->label('Tipo')
                     ->options([
@@ -201,13 +223,16 @@ class TimeEntryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => auth()->user()->isAdmin()),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => auth()->user()->isAdmin()),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                ])
+                    ->visible(fn () => auth()->user()->isAdmin()),
             ])
             ->defaultSort('datetime', 'desc');
     }

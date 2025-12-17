@@ -169,38 +169,54 @@ class MyTimeClock extends Page
     protected function hasOpenShift(): bool
     {
         $today = today();
-        $entrada = TimeEntry::where('user_id', auth()->id())
+        
+        // Obtener la última entrada del día
+        $ultimaEntrada = TimeEntry::where('user_id', auth()->id())
             ->where('type', 'entrada')
             ->whereDate('datetime', $today)
-            ->exists();
+            ->orderBy('datetime', 'desc')
+            ->first();
             
-        $salida = TimeEntry::where('user_id', auth()->id())
+        // Si no hay entrada, no hay jornada abierta
+        if (!$ultimaEntrada) {
+            return false;
+        }
+        
+        // Obtener la última salida del día
+        $ultimaSalida = TimeEntry::where('user_id', auth()->id())
             ->where('type', 'salida')
             ->whereDate('datetime', $today)
-            ->exists();
-            
-        return $entrada && !$salida;
+            ->orderBy('datetime', 'desc')
+            ->first();
+        
+        // Si no hay salida o la entrada es más reciente que la salida, hay jornada abierta
+        return !$ultimaSalida || $ultimaEntrada->datetime > $ultimaSalida->datetime;
     }
     
     protected function hasOpenPause(): bool
     {
         $today = today();
-        $pausaInicio = TimeEntry::where('user_id', auth()->id())
+        
+        // Obtener la última pausa de inicio del día
+        $ultimaPausaInicio = TimeEntry::where('user_id', auth()->id())
             ->where('type', 'pausa_inicio')
             ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->first();
             
-        if (!$pausaInicio) {
+        // Si no hay pausa de inicio, no hay pausa abierta
+        if (!$ultimaPausaInicio) {
             return false;
         }
         
-        $pausaFin = TimeEntry::where('user_id', auth()->id())
+        // Obtener la última pausa de fin del día
+        $ultimaPausaFin = TimeEntry::where('user_id', auth()->id())
             ->where('type', 'pausa_fin')
             ->whereDate('datetime', $today)
-            ->where('datetime', '>', $pausaInicio->datetime)
-            ->exists();
-            
-        return !$pausaFin;
+            ->orderBy('datetime', 'desc')
+            ->first();
+        
+        // Si no hay pausa fin o el inicio es más reciente que el fin, hay pausa abierta
+        return !$ultimaPausaFin || $ultimaPausaInicio->datetime > $ultimaPausaFin->datetime;
     }
 }
